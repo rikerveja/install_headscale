@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # 设置 PATH 环境变量，确保能够找到必要的系统命令
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+export PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ARCHIVE="headscale-offline-package.tar.gz"
 SERVICE="headscale"
