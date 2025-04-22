@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# 设置 PATH 环境变量，确保能够找到必要的系统命令
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
 ARCHIVE="headscale-offline-package.tar.gz"
 SERVICE="headscale"
 USER="headscale"
 HOME_DIR="/var/lib/${USER}"
 SHELL="/usr/sbin/nologin"
+INSTALL_DIR="/opt/headscale"
 
 # 仅允许 root 用户运行
 if [[ $EUID -ne 0 ]]; then
@@ -19,9 +23,10 @@ if [[ ! -f "${ARCHIVE}" ]]; then
   exit 1
 fi
 
-# 解压离线包
+# 解压离线包到指定目录，避免覆盖系统目录
 echo ">> 解压离线包：${ARCHIVE}"
-tar -xzf "${ARCHIVE}" -C /
+mkdir -p "${INSTALL_DIR}"
+tar -xzf "${ARCHIVE}" -C "${INSTALL_DIR}"
 
 # 创建或检查系统用户
 echo ">> 创建或检查系统用户：${USER}"
@@ -41,7 +46,7 @@ else
         && echo "使用 Debian adduser 创建用户"
     fi
   else
-    echo "无法识别的发行版或缺少用户管理工具，跳过用户创建，服务将以 root 身份运行" >&2
+    echo "无法识别的发行版或包管理器，跳过用户创建，服务将以 root 身份运行" >&2
     USER="root"
     HOME_DIR="/root"
   fi
