@@ -15,13 +15,13 @@ HOME_DIR="/var/lib/headscale"
 
 # 仅允许 root 用户运行
 if [[ $EUID -ne 0 ]]; then
-  echo "请使用 root 用户运行此脚本"
+  echo "❌ 请使用 root 用户运行此脚本"
   exit 1
 fi
 
 # 检查离线包是否存在
 if [[ ! -f "${ARCHIVE}" ]]; then
-  echo "未找到离线包 ${ARCHIVE}，请将其放在当前目录后重试"
+  echo "❌ 未找到离线包 ${ARCHIVE}，请将其放在当前目录后重试"
   exit 1
 fi
 
@@ -32,25 +32,26 @@ tar -xzf "${ARCHIVE}" -C "${INSTALL_DIR}"
 
 # 安装 Headscale 可执行文件
 echo ">> 安装 Headscale 可执行文件"
-if [[ -f "${INSTALL_DIR}/headscale" ]]; then
-  cp "${INSTALL_DIR}/headscale" "${BIN_DIR}/headscale"
+if [[ -f "${INSTALL_DIR}/bin/headscale" ]]; then
+  cp "${INSTALL_DIR}/bin/headscale" "${BIN_DIR}/headscale"
   chmod +x "${BIN_DIR}/headscale"
 else
-  echo "未找到 headscale 可执行文件"
+  echo "❌ 未找到可执行文件：${INSTALL_DIR}/bin/headscale"
   exit 1
 fi
 
 # 安装 systemd 服务文件
 echo ">> 安装 systemd 服务文件"
-if [[ -f "${INSTALL_DIR}/headscale.service" ]]; then
-  cp "${INSTALL_DIR}/headscale.service" "${SERVICE_FILE}"
+SERVICE_SRC="${INSTALL_DIR}/lib/systemd/system/${SERVICE}.service"
+if [[ -f "${SERVICE_SRC}" ]]; then
+  cp "${SERVICE_SRC}" "${SERVICE_FILE}"
 else
-  echo "未找到 headscale.service 文件"
+  echo "❌ 未找到服务文件：${SERVICE_SRC}"
   exit 1
 fi
 
-# 创建配置目录和文件
-echo ">> 创建配置目录和文件"
+# 创建配置目录和默认配置文件（如果不存在）
+echo ">> 创建配置目录和默认配置文件（如果不存在）"
 mkdir -p "${CONFIG_DIR}"
 if [[ ! -f "${CONFIG_FILE}" ]]; then
   cat <<EOF > "${CONFIG_FILE}"
@@ -66,7 +67,7 @@ EOF
 fi
 
 # 设置数据目录权限
-echo ">> 设置数据目录权限：${HOME_DIR}"
+echo ">> 设置目录权限：${HOME_DIR}"
 mkdir -p "${HOME_DIR}"
 chown -R root:root "${HOME_DIR}"
 
@@ -77,5 +78,5 @@ if command -v systemctl &>/dev/null; then
   systemctl enable --now "${SERVICE}"
   echo "✅ Headscale 服务已启动（以 root 用户运行）"
 else
-  echo "警告：未检测到 systemctl，请手动加载并启动 ${SERVICE}.service"
+  echo "⚠️ 警告：未检测到 systemctl，请手动加载并启动 ${SERVICE}.service"
 fi
