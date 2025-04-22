@@ -47,8 +47,8 @@ go mod download
 go mod vendor                                  # 打包全部中间文件
 
 # 3. 编译二进制  
-echo ">> 编译 headscale 二进制"
-go build -mod=vendor -o headscale ./cmd/headscale
+echo ">> 编译 headscale 二进制（显示详细进度）"
+go build -mod=vendor -v -o headscale ./cmd/headscale
 
 # 4. 准备离线目录结构  
 cd ..
