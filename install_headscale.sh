@@ -7,8 +7,11 @@ export PATH="$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ARCHIVE="headscale-offline-package.tar.gz"
 SERVICE="headscale"
 INSTALL_DIR="/opt/headscale"
+BIN_DIR="/usr/local/bin"
+SERVICE_FILE="/etc/systemd/system/${SERVICE}.service"
+CONFIG_DIR="/etc/headscale"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
 HOME_DIR="/var/lib/headscale"
-EXECUTABLE="/usr/local/bin/headscale"
 
 # 仅允许 root 用户运行
 if [[ $EUID -ne 0 ]]; then
@@ -27,38 +30,52 @@ echo ">> 解压离线包：${ARCHIVE}"
 mkdir -p "${INSTALL_DIR}"
 tar -xzf "${ARCHIVE}" -C "${INSTALL_DIR}"
 
-# 将可执行文件移动到 /usr/local/bin 并赋予执行权限
+# 安装 Headscale 可执行文件
 echo ">> 安装 Headscale 可执行文件"
-cp "${INSTALL_DIR}/headscale" "${EXECUTABLE}"
-chmod +x "${EXECUTABLE}"
+if [[ -f "${INSTALL_DIR}/headscale" ]]; then
+  cp "${INSTALL_DIR}/headscale" "${BIN_DIR}/headscale"
+  chmod +x "${BIN_DIR}/headscale"
+else
+  echo "未找到 headscale 可执行文件"
+  exit 1
+fi
+
+# 安装 systemd 服务文件
+echo ">> 安装 systemd 服务文件"
+if [[ -f "${INSTALL_DIR}/headscale.service" ]]; then
+  cp "${INSTALL_DIR}/headscale.service" "${SERVICE_FILE}"
+else
+  echo "未找到 headscale.service 文件"
+  exit 1
+fi
+
+# 创建配置目录和文件
+echo ">> 创建配置目录和文件"
+mkdir -p "${CONFIG_DIR}"
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+  cat <<EOF > "${CONFIG_FILE}"
+server_url: http://127.0.0.1:8080
+listen_addr: 0.0.0.0:8080
+metrics_listen_addr: 127.0.0.1:9090
+private_key_path: ${HOME_DIR}/private.key
+noise:
+  private_key_path: ${HOME_DIR}/noise_private.key
+db_type: sqlite3
+db_path: ${HOME_DIR}/db.sqlite
+EOF
+fi
 
 # 设置数据目录权限
-echo ">> 设置目录权限：${HOME_DIR}"
+echo ">> 设置数据目录权限：${HOME_DIR}"
 mkdir -p "${HOME_DIR}"
 chown -R root:root "${HOME_DIR}"
 
-# 创建 systemd 服务文件
-echo ">> 创建 systemd 服务文件：/etc/systemd/system/${SERVICE}.service"
-cat <<EOF > /etc/systemd/system/${SERVICE}.service
-[Unit]
-Description=Headscale Controller
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=${EXECUTABLE} serve
-WorkingDirectory=${HOME_DIR}
-Restart=always
-RestartSec=5
-User=root
-Group=root
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 重新加载 systemd 配置并启动服务
+# 启动 systemd 服务
 echo ">> 启动 systemd 服务：${SERVICE}.service"
-systemctl daemon-reload
-systemctl enable --now "${SERVICE}"
-echo "✅ Headscale 服务已启动（以 root 用户运行）"
+if command -v systemctl &>/dev/null; then
+  systemctl daemon-reload
+  systemctl enable --now "${SERVICE}"
+  echo "✅ Headscale 服务已启动（以 root 用户运行）"
+else
+  echo "警告：未检测到 systemctl，请手动加载并启动 ${SERVICE}.service"
+fi
